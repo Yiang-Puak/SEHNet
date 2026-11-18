@@ -1,5 +1,3 @@
-"""SEHNet training and ontology-propagated evaluation."""
-
 from __future__ import annotations
 
 import json
@@ -39,7 +37,7 @@ from .training_utils import (
 
 try:
     from tqdm import tqdm
-except ImportError:  # pragma: no cover
+except ImportError:
     tqdm = None
 
 
@@ -160,7 +158,6 @@ def anchor_classification_loss(
     ensemble_size: int,
     class_nums: int,
 ) -> torch.Tensor:
-    """Supervise the protected global path with no local-gradient overlap."""
 
     if output.anchor_member_logits is None:
         return output.logits.new_zeros(())
@@ -516,7 +513,6 @@ def protein_set_f1_loss(
     targets: torch.Tensor,
     root_indices: Sequence[int],
 ) -> torch.Tensor:
-    """Smooth surrogate of the protein-centric macro F-measure."""
 
     probabilities = probabilities.float()
     targets = targets.float()
@@ -551,7 +547,6 @@ def maybe_freeze_latent_depth_gates(
     epoch: int,
     already_frozen: bool,
 ) -> tuple[bool, int, float | None]:
-    """Freeze SEHNet's four bounded GO-depth gates at the first crossing."""
     if threshold <= 0.0 or already_frozen:
         return already_frozen, 0, None
     latent_module = getattr(model, "latent_domain_fusion", None)
@@ -826,9 +821,6 @@ def run_training(args) -> None:
         "collate_fn": sehnet_collate,
         "persistent_workers": args.num_workers > 0,
     }
-    # Keep the sample trajectory invariant to optional-module
-    # initialization.  RandomSampler otherwise consumes the global CPU RNG
-    # only when the first epoch iterator is created.
     train_order_generator = torch.Generator(device="cpu")
     train_order_generator.manual_seed(
         (int(args.seed) + 0x51E71A) % (2**63 - 1)
@@ -1376,7 +1368,6 @@ def run_training(args) -> None:
     )
     scaler = make_grad_scaler(amp_enabled)
     go_obj = Ontology(get_path("go_obo", args.data_root))
-    # Direct GO edges define the evaluation hierarchy.
     direct_children, direct_parents, _ = load_go_direct_parent_edges(
         args.ont,
         train_ds.terms,
@@ -1947,8 +1938,6 @@ def run_training(args) -> None:
                         if name.startswith("latent_domain_fusion.")
                         else global_parameters
                     ).append(parameter)
-                # Keep the protected K=8 update exactly independent of the
-                # local branch even when either side reaches the clip bound.
                 grad_norm = torch.nn.utils.clip_grad_norm_(
                     global_parameters,
                     args.grad_clip,

@@ -1,6 +1,3 @@
-#!/usr/bin/env python3
-"""Train SEHNet or one of its six operation-defined ablations."""
-
 from __future__ import annotations
 
 import argparse
@@ -26,7 +23,7 @@ ABLATIONS = {
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(description='Train SEHNet or one of its six operation-defined ablations.')
     parser.add_argument("--config", type=Path, help="Ontology configuration JSON.")
     parser.add_argument("--ont", choices=ONTOLOGIES)
     parser.add_argument("--data_root", type=Path, default=get_path("data_root"))
@@ -88,7 +85,6 @@ def parse_args() -> argparse.Namespace:
 
 
 def apply_model_config(args: argparse.Namespace) -> None:
-    """Fill the fixed SEHNet settings consumed by the shared training loop."""
 
     variant = ABLATIONS[args.ablation]
     uses_local = variant != "global_only"

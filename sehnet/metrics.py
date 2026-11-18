@@ -1,9 +1,3 @@
-"""CAFA metrics matching the official DPGOK evaluation implementation.
-
-Reference:
-https://github.com/CSUBioGroup/DPGOK/blob/4f2716cecde42a8918995168509403b6aef7a4cd/src/evaluation.py
-"""
-
 from __future__ import annotations
 
 from collections import deque
@@ -71,14 +65,6 @@ def DAG_propagation(
     go_obj: Ontology,
     valid_terms: Sequence[str],
 ) -> np.ndarray:
-    """Propagate each term score to all ancestors in one batch.
-
-    This is mathematically identical to the original score-sorted protein loop:
-    every output term receives the maximum score of all descendants. Ancestor
-    indices are cached because the ontology and term order stay fixed.
-    """
-    # Official DPGOK converts prediction dictionaries back into a NumPy
-    # matrix, which evaluates the stored float32 values in float64.
     preds = np.asarray(preds, dtype=np.float64)
     cache_key = tuple(valid_terms)
     ancestor_indices = go_obj._ancestor_index_cache.get(cache_key)
@@ -111,8 +97,6 @@ def calculate_cafa_fmax_aupr(targets: np.ndarray, scores: np.ndarray, valid_term
     targets = np.array(targets, copy=True)
     scores = np.array(scores, copy=True)
 
-    # DPGOK removes ontology roots from the evaluated GO namespace instead of
-    # retaining zero-valued root columns.
     keep = np.fromiter(
         (term not in ROOT_GO_TERMS for term in valid_terms),
         dtype=bool,
@@ -149,8 +133,6 @@ def calculate_cafa_fmax_aupr(targets: np.ndarray, scores: np.ndarray, valid_term
 
         if not np.isnan(p) and p + r > 0:
             f1 = 2 * p * r / (p + r)
-            # Official code uses tuple max, so an exact F1 tie selects the
-            # larger threshold.
             if f1 >= fmax_:
                 fmax_ = f1
                 t_max = cut

@@ -8,7 +8,7 @@ Reference code for term-conditioned local evidence and parent-contrast decoding 
 - `analysis/`: BP depth/frequency summaries, local-slot occlusion and attribution controls.
 - `configs/`: portable MF, CC and BP training configurations.
 
-This release contains code and configuration files.
+This release contains code and configuration files. The CAFA metrics implementation references the [DPGOK evaluation code](https://github.com/CSUBioGroup/DPGOK/blob/4f2716cecde42a8918995168509403b6aef7a4cd/src/evaluation.py).
 
 ## Setup and data
 

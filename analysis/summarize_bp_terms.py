@@ -1,6 +1,3 @@
-#!/usr/bin/env python3
-"""Summarize BP SEHNet term-wise errors from a saved five-checkpoint score bundle."""
-
 from __future__ import annotations
 
 import argparse
@@ -12,7 +9,7 @@ import numpy as np
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(description='Summarize BP SEHNet term-wise errors from a saved five-checkpoint score bundle.')
     parser.add_argument("--scores", type=Path, required=True, help="last_five_test_scores.pkl")
     parser.add_argument("--term-manifest", type=Path, required=True)
     parser.add_argument("--threshold", type=float, required=True, help="Fmax threshold from matching summary JSON")

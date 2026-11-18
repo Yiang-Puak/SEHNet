@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-"""Compare routing and gradient-times-input on a fixed BP cohort."""
 import argparse
 import csv
 import json
@@ -17,7 +15,7 @@ from sehnet.data import load_terms
 
 
 def main():
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(description='Compare routing and gradient-times-input on a fixed BP cohort.')
     parser.add_argument('--run-dir', type=Path, required=True, help='BP analysis run directory containing the final five training checkpoints')
     parser.add_argument('--data-root', type=Path, required=True)
     parser.add_argument('--pairs', type=Path, required=True, help='pair_results.csv produced by analysis.occlude_bp')

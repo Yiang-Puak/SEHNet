@@ -1,5 +1,3 @@
-"""Parameter-efficient functional hypothesis ensemble for frozen ESM features."""
-
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -10,7 +8,6 @@ import torch.nn.functional as F
 
 
 class BatchEnsembleLinear(nn.Module):
-    """A shared linear map with rank-one adapters for each hypothesis."""
 
     def __init__(
         self,
@@ -67,8 +64,6 @@ class BatchEnsembleLinear(nn.Module):
         nn.init.uniform_(self.bias, -bound, bound)
         if diversify_input:
             with torch.no_grad():
-                # Do not advance the global CPU RNG here: changing K would
-                # otherwise also change every shared layer initialized later.
                 sign_generator = torch.Generator(device="cpu")
                 sign_generator.manual_seed(
                     (torch.initial_seed() + 0x5EED5EED) % (2**63 - 1)
@@ -85,7 +80,6 @@ class BatchEnsembleLinear(nn.Module):
         return self._forward(inputs, detach_parameters=False)
 
     def forward_detached(self, inputs: torch.Tensor) -> torch.Tensor:
-        """Apply the same classifier while updating only its inputs."""
 
         return self._forward(inputs, detach_parameters=True)
 
@@ -158,7 +152,6 @@ class EnsembleBlock(nn.Module):
 
 
 class IndependentHypothesisClassifier(nn.Module):
-    """A complete label classifier for each functional hypothesis."""
 
     def __init__(
         self,
@@ -188,7 +181,6 @@ class IndependentHypothesisClassifier(nn.Module):
         return self._forward(inputs, detach_parameters=False)
 
     def forward_detached(self, inputs: torch.Tensor) -> torch.Tensor:
-        """Apply the same classifier while updating only its inputs."""
 
         return self._forward(inputs, detach_parameters=True)
 
@@ -221,7 +213,6 @@ class IndependentHypothesisClassifier(nn.Module):
 
 
 class ReZeroSwiGLURefinement(nn.Module):
-    """Function-preserving gated growth for converged hypothesis features."""
 
     def __init__(
         self,
@@ -251,7 +242,6 @@ class ReZeroSwiGLURefinement(nn.Module):
 
 
 class ParentContrastiveLocalAttention(nn.Module):
-    """GO semantic queries over centered local protein evidence."""
 
     def __init__(
         self,
@@ -608,15 +598,6 @@ class ParentContrastiveLocalAttention(nn.Module):
 
 
 class LatentDomainLocalFusion(nn.Module):
-    """Pool local ESM evidence through a small shared domain bottleneck.
-
-    The fixed uniform layer mix is deliberately label independent.  A small
-    bank of learned domain queries first pools sequence segments, then each
-    functional hypothesis selects among the resulting protein-specific
-    domain tokens.  The global hypothesis features are detached only on the
-    local-query path so the auxiliary stream cannot reshape the main encoder
-    through its attention query.
-    """
 
     def __init__(
         self,
@@ -754,8 +735,6 @@ class LatentDomainLocalFusion(nn.Module):
                 "semantic vectors and weights"
             )
 
-        # Normalize each ESM layer separately before uniform fusion and
-        # projection into a shared latent space.
         self.layer_norms = nn.ModuleList(
             nn.LayerNorm(self.local_dim)
             for _ in range(self.num_local_layers)
@@ -766,13 +745,6 @@ class LatentDomainLocalFusion(nn.Module):
             bias=False,
         )
         if self.layer_contrast:
-            # The fixed mean stream remains the exact SEHNet input.  A
-            # zero-initialized late-minus-early projection can learn the
-            # signed representation transition that a convex layer mixture
-            # cannot express, while preserving exact SEHNet initialization.
-            # Do not advance the RNG used by SEHNet's downstream domain queries
-            # and prototype projection.  This keeps every shared parameter
-            # bit-identical under the same seed.
             with torch.random.fork_rng(devices=[]):
                 self.layer_contrast_projection = nn.Linear(
                     self.local_dim,
@@ -804,9 +776,6 @@ class LatentDomainLocalFusion(nn.Module):
             )
             self.depth_gates = nn.Parameter(torch.zeros(4))
             if self.ic_semantic_residual:
-                # The zero scalar makes initialization exactly SEHNet.  A
-                # private RNG context prevents the new projection from
-                # changing any downstream shared initialization.
                 with torch.random.fork_rng(devices=[]):
                     self.semantic_projection = nn.Linear(
                         int(semantic_dim),
@@ -818,10 +787,6 @@ class LatentDomainLocalFusion(nn.Module):
                 self.semantic_projection = None
                 self.register_parameter("semantic_residual_gate", None)
             if self.adaptive_label_query_norm:
-                # lambda=tanh(raw) controls how much of the task-prototype
-                # magnitude is retained for each GO depth group.  lambda=0
-                # is exactly SEHNet; lambda=1 approaches RMS-normalized routing
-                # without discarding the direction learned by the classifier.
                 self.query_norm_exponents = nn.Parameter(torch.zeros(4))
             else:
                 self.register_parameter("query_norm_exponents", None)
@@ -942,8 +907,6 @@ class LatentDomainLocalFusion(nn.Module):
 
         mask = local_mask.bool()
         valid = mask[:, None, :]
-        # Missing sequence features remain exact zeros through LayerNorm and
-        # the bias-free projection, so the fusion is an exact identity.
         normalized_layers = torch.stack(
             [
                 self.layer_norms[layer_index](
@@ -969,8 +932,6 @@ class LatentDomainLocalFusion(nn.Module):
             domain_queries.to(projected_segments.dtype),
             projected_segments,
         ) * (self.attention_dim**-0.5)
-        # Competitive allocation distributes each segment across queries,
-        # then normalizes valid segment weights within each query for pooling.
         segment_weights = torch.softmax(
             segment_logits.float().masked_fill(~valid, -1e4),
             dim=(
@@ -1007,9 +968,6 @@ class LatentDomainLocalFusion(nn.Module):
                 )
             assert self.prototype_proj is not None
             assert self.depth_gates is not None
-            # Keep the small label-prototype path in FP32.  Once a depth gate
-            # opens, FP16 normalization gradients can otherwise overflow and
-            # contaminate the shared 1024x64 projection.
             with torch.autocast(
                 device_type=label_prototypes.device.type,
                 enabled=False,
@@ -1027,22 +985,8 @@ class LatentDomainLocalFusion(nn.Module):
                         * self.label_semantic_weights[:, None]
                         * semantic_locators
                     )
-            # Scaled dot-product attention assumes query and key components
-            # have comparable variance.  Classifier-derived locators can have
-            # very small norms, making the label-to-domain softmax effectively
-            # uniform after the 1/sqrt(d) scale.  Parameter-free LayerNorm
-            # restores the intended query geometry without changing the
-            # child-minus-parent discriminator used to score local evidence.
             label_confidences = None
             if self.confidence_direction_routing:
-                # A task-supervised label prototype contains two distinct
-                # signals.  Its direction locates compatible protein domains,
-                # while its norm carries label reliability.  Standard dot-
-                # product attention entangles both: small reliable directions
-                # become uniform, whereas full normalization treats every
-                # label as equally trustworthy.  CDOR factorizes the two with
-                # no trainable parameters.  sqrt(d) reproduces the effective
-                # cosine scale of LayerNorm query/key attention.
                 attention_locators = F.normalize(
                     locators,
                     dim=-1,
@@ -1094,10 +1038,6 @@ class LatentDomainLocalFusion(nn.Module):
                 discriminator_logits = locators - parent_sums / counts[:, None]
             else:
                 discriminator_logits = locators
-            # Normalize before masking.  Masking first creates exact zero
-            # vectors for labels without a retained direct parent; their
-            # normalization backward is singular in FP16 even though their
-            # forward evidence is zero.
             discriminators = F.normalize(
                 discriminator_logits,
                 dim=-1,
@@ -1179,8 +1119,6 @@ class LatentDomainLocalFusion(nn.Module):
             assert self.global_query is not None
             assert self.evidence_output is not None
             assert self.member_scale is not None
-            # Stop-gradient on this query path protects the 3B global
-            # anchor; the identity path below still trains normally.
             hypothesis_queries = self.global_query(
                 self.global_norm(features.detach())
             )
@@ -1288,7 +1226,6 @@ class HypothesisEnsembleOutput:
 
 
 class FunctionalHypothesisEnsemble(nn.Module):
-    """Residual MLP whose hypotheses share weights but keep rank-one adapters."""
 
     def __init__(
         self,
@@ -1489,11 +1426,6 @@ class FunctionalHypothesisEnsemble(nn.Module):
             ensemble_size,
             dropout,
         )
-        # Instantiate the shared classifier before local-evidence
-        # modules.  With a fixed seed this keeps every shared parameter
-        # bit-identical between a global-only and full model, so a
-        # paired from-scratch comparison does not confound the new module
-        # with a different classifier initialization.
         if self.independent_classifier:
             self.classifier = IndependentHypothesisClassifier(
                 hidden_dim,
@@ -1540,9 +1472,6 @@ class FunctionalHypothesisEnsemble(nn.Module):
         else:
             self.local_semantic_attention = None
         if self.latent_domain_fusion_enabled:
-            # Optional-module initialization must not advance the global CPU
-            # RNG, otherwise an otherwise identical baseline receives a
-            # different shuffled training order.
             with torch.random.fork_rng(devices=[]):
                 self.latent_domain_fusion = LatentDomainLocalFusion(
                     local_dim=local_segment_dim,
@@ -1718,10 +1647,6 @@ class FunctionalHypothesisEnsemble(nn.Module):
             features = self.gated_refinement(features)
         anchor_member_logits = None
         if self.anchor_preserving_local_gradients and self.training:
-            # Numerically retain the ordinary fused feature tensor while
-            # removing its identity-path gradient into the global anchor.
-            # The detached classifier copy then sends this loss only into
-            # the latent-domain residual and its zero-initialized gate.
             local_training_features = (
                 anchor_features.detach()
                 + (features - anchor_features)
@@ -1729,9 +1654,6 @@ class FunctionalHypothesisEnsemble(nn.Module):
             member_logits = self.classifier.forward_detached(
                 local_training_features
             )
-            # Global-only prediction path.
-            # Its supervised loss is the sole update source for the shared
-            # global encoder and classifier during anchor-preserving training.
             anchor_member_logits = self.classifier(anchor_features)
         else:
             member_logits = self.classifier(features)
@@ -1764,8 +1686,6 @@ class FunctionalHypothesisEnsemble(nn.Module):
         routing_weights = None
         routing_entropy = None
         if self.semantic_router_enabled:
-            # Keep the sparse extreme-label mixture in FP32 under AMP so
-            # low-probability labels still provide a gradient to the router.
             protein_route_logits = self.protein_router(
                 features.float()
             ).squeeze(-1)
@@ -1818,7 +1738,6 @@ class FunctionalHypothesisEnsemble(nn.Module):
         protein_features: torch.Tensor,
         function_semantics: torch.Tensor,
     ) -> tuple[torch.Tensor, torch.Tensor]:
-        """Project protein evidence and its annotated function set."""
 
         if (
             self.protein_alignment_head is None

@@ -1,5 +1,3 @@
-"""Dataset utilities for sequence-only SEHNet."""
-
 from __future__ import annotations
 
 import pickle as pkl
@@ -73,7 +71,6 @@ def load_labels_for_pids(
 
 
 class SEHNetDataset(data.Dataset):
-    """Loads shared ESM-2 features and GO labels without copying raw data."""
 
     def __init__(
         self,

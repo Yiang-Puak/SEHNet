@@ -1,12 +1,3 @@
-#!/usr/bin/env python3
-"""Prepare BP term strata and checkpoint metadata.
-
-This script performs no training and no prediction.  It fixes the selected
-checkpoint set, derives GO-depth and training-frequency strata exclusively
-from the supplied training labels, and records test-label coverage needed by
-the later per-term error table and local-segment occlusion analysis.
-"""
-
 from __future__ import annotations
 
 import argparse
@@ -48,7 +39,7 @@ def data_path(data_root: Path, name: str) -> Path:
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(description='Prepare BP term strata and checkpoint metadata.\n\nThis script performs no training and no prediction.  It fixes the selected\ncheckpoint set, derives GO-depth and training-frequency strata exclusively\nfrom the supplied training labels, and records test-label coverage needed by\nthe later per-term error table and local-segment occlusion analysis.\n')
     parser.add_argument("--run-dir", type=Path, required=True)
     parser.add_argument("--data-root", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path)

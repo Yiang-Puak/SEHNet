@@ -1,5 +1,3 @@
-"""Path configuration for the sequence-only SEHNet project."""
-
 from __future__ import annotations
 
 import os

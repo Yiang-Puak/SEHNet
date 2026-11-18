@@ -1,10 +1,3 @@
-"""Extract reproducible whole-protein ESM-2 global and segment features.
-
-The extractor keeps every residue by splitting long proteins into non-overlapping
-windows. Residue representations are pooled into fixed whole-protein coordinate
-bins, so downstream training can use local evidence without loading the PLM.
-"""
-
 from __future__ import annotations
 
 import argparse
@@ -24,7 +17,7 @@ from .data import read_pids
 
 try:
     from tqdm import tqdm
-except ImportError:  # pragma: no cover
+except ImportError:
     tqdm = None
 
 

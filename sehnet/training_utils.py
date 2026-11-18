@@ -1,5 +1,3 @@
-"""Small shared utilities for sequence-only SEHNet training and evaluation."""
-
 from __future__ import annotations
 
 import hashlib
@@ -17,7 +15,6 @@ from .config import get_path
 
 
 class AsymmetricLoss(nn.Module):
-    """Asymmetric focal loss used by SEHNet."""
 
     def __init__(
         self,
@@ -61,7 +58,6 @@ def load_go_semantics(
     terms: Sequence[str],
     data_root: str | Path,
 ) -> torch.Tensor:
-    """Load fixed GO semantic vectors in the selected label order."""
 
     path = (
         get_path("go_semantics_dir", data_root)
@@ -93,9 +89,8 @@ def load_parent_contrast_go_semantics(
     terms: Sequence[str],
     data_root: str | Path,
 ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, Dict[str, object]]:
-    """Build semantic locator and parent-relative discriminator vectors."""
 
-    from metrics_cafa import Ontology
+    from .metrics import Ontology
 
     semantics = load_go_semantics(ont, terms, data_root).float()
     semantics = semantics - semantics.mean(dim=0, keepdim=True)
@@ -162,9 +157,8 @@ def load_go_direct_parent_edges(
     terms: Sequence[str],
     data_root: str | Path,
 ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-    """Return child-parent edges and per-child counts in model term order."""
 
-    from metrics_cafa import Ontology
+    from .metrics import Ontology
 
     ontology = Ontology(get_path("go_obo", data_root))
     term_to_index = {term: index for index, term in enumerate(terms)}
@@ -195,14 +189,8 @@ def load_go_shuffled_parent_edges(
     data_root: str | Path,
     seed: int,
 ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, Dict[str, object]]:
-    """Build one fixed depth-matched pseudo-parent map for an SEHNet ablation.
 
-    Direct parent counts are preserved.  Parent depths are matched exactly
-    whenever a topology-safe peer exists; sparse shallow GO levels fall back
-    to the nearest safe depth and the resulting depth difference is recorded.
-    """
-
-    from metrics_cafa import Ontology
+    from .metrics import Ontology
 
     ontology = Ontology(get_path("go_obo", data_root))
     term_to_index = {term: index for index, term in enumerate(terms)}
@@ -306,9 +294,8 @@ def load_go_depth_groups(
     terms: Sequence[str],
     data_root: str | Path,
 ) -> Tuple[torch.Tensor, Dict[str, object]]:
-    """Compute the four fixed GO depth groups without loading text semantics."""
 
-    from metrics_cafa import Ontology
+    from .metrics import Ontology
 
     ontology = Ontology(get_path("go_obo", data_root))
     roots = {

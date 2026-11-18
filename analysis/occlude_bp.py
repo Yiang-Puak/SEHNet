@@ -1,11 +1,3 @@
-#!/usr/bin/env python3
-"""Fixed-weight BP SEHNet Top/Random/Bottom local-segment occlusion.
-
-The cohort and segment ranking are fixed before any masking.  This is a
-post-hoc mechanism analysis: it makes no training, threshold tuning, or DAG
-propagation, and reports every sampled protein--term pair.
-"""
-
 from __future__ import annotations
 
 import argparse
@@ -23,8 +15,8 @@ import torch
 
 ROOT = Path(__file__).resolve().parents[1]
 
-from sehnet.evaluate import build_model  # noqa: E402
-from sehnet.metrics import Ontology  # noqa: E402
+from sehnet.evaluate import build_model
+from sehnet.metrics import Ontology
 
 
 def final_checkpoint_epochs(run_dir: Path) -> tuple[int, ...]:
@@ -48,7 +40,7 @@ def parse_args() -> argparse.Namespace:
     default_run = (
         ROOT / "results" / "bp_analysis"
     )
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(description='Fixed-weight BP SEHNet Top/Random/Bottom local-segment occlusion.\n\nThe cohort and segment ranking are fixed before any masking.  This is a\npost-hoc mechanism analysis: it makes no training, threshold tuning, or DAG\npropagation, and reports every sampled protein--term pair.\n')
     parser.add_argument("--run-dir", type=Path, default=default_run)
     parser.add_argument("--data-root", type=Path, default=ROOT / "data")
     parser.add_argument(
@@ -122,7 +114,6 @@ def choose_cohort(
     max_per_stratum: int,
     minimum_raw_probability: float,
 ) -> list[dict[str, object]]:
-    """Sample only correct, confident predictions; no masking result is read."""
 
     groups: dict[tuple[str, str], list[tuple[int, int]]] = defaultdict(list)
     for protein_i, term_i in zip(*np.nonzero(labels)):
@@ -181,7 +172,6 @@ def segment_importance(
     parent_indices: torch.Tensor | None = None,
     parent_counts: torch.Tensor | None = None,
 ) -> torch.Tensor:
-    """Return a pre-mask SEHNet route score or signed child-parent support proxy."""
 
     module = model.latent_domain_fusion
     if module is None or not module.label_readout or not module.competitive_segment_assignment:

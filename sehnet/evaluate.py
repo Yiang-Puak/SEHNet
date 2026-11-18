@@ -1,6 +1,3 @@
-#!/usr/bin/env python3
-"""Evaluate the final five training checkpoints without retrieval evidence."""
-
 from __future__ import annotations
 
 import argparse
@@ -28,12 +25,12 @@ from .training_utils import (
 
 try:
     from tqdm import tqdm
-except ImportError:  # pragma: no cover
+except ImportError:
     tqdm = None
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(description='Evaluate the final five training checkpoints without retrieval evidence.')
     parser.add_argument("--run-dir", type=Path, required=True)
     parser.add_argument("--data-root", type=Path)
     parser.add_argument("--ont", choices=("mf", "bp", "cc"))
@@ -261,7 +258,6 @@ def build_model(
                     latent_label_semantics,
                     dim=-1,
                 )
-                # The persistent checkpoint buffer overwrites these values.
                 latent_label_semantic_weights = torch.ones(
                     len(terms),
                     dtype=torch.float32,
@@ -434,8 +430,6 @@ def main() -> int:
     if args.epochs:
         selected_epochs = sorted(set(args.epochs))
     else:
-        # Early stopping defines the completed trajectory; the configured
-        # maximum epoch is not necessarily present.
         final_epoch = max(available_epochs)
         selected_epochs = list(range(max(1, final_epoch - 4), final_epoch + 1))
     missing = [
