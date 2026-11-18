@@ -1,0 +1,11 @@
+不公开文件/
+__pycache__/
+*.py[cod]
+data/
+results/
+*.pth
+*.pt
+*.pkl
+*.npy
+*.npz
+*.zip
